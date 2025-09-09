@@ -1,0 +1,23 @@
+{
+  "default": {
+    "host": "localhost",
+    "port": 61613,
+    "username": "",
+    "password": "",
+    "ssl": false
+  },
+  "production": {
+    "host": "prod-activemq.example.com",
+    "port": 61614,
+    "username": "prod-user",
+    "password": "prod-password",
+    "ssl": true
+  },
+  "staging": {
+    "host": "staging-activemq.example.com", 
+    "port": 61613,
+    "username": "staging-user",
+    "password": "staging-password",
+    "ssl": false
+  }
+}

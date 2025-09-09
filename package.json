@@ -1,0 +1,41 @@
+{
+  "name": "activemq-mcp-server",
+  "version": "1.0.0",
+  "description": "ActiveMQ MCP server for AI integration with queue and topic management capabilities",
+  "type": "module",
+  "main": "src/server.js",
+  "bin": {
+    "activemq-mcp-server": "./bin/cli.js"
+  },
+  "scripts": {
+    "start": "node bin/cli.js",
+    "dev": "node --inspect bin/cli.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "activemq",
+    "mcp",
+    "messaging",
+    "queue",
+    "topic",
+    "jms"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "axios": "^1.6.0",
+    "winston": "^3.17.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/activemq-mcp-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/activemq-mcp-server/issues"
+  },
+  "homepage": "https://github.com/your-username/activemq-mcp-server#readme"
+}
