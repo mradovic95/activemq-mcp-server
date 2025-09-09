@@ -93,28 +93,16 @@ export class ConfigManager {
     return true
   }
 
-  // Get configuration for all connections to import
-  getConnectionsForImport() {
-    const connections = {}
-    
-    for (const [name, config] of Object.entries(this.config)) {
-      if (config && typeof config === 'object' && config.host) {
-        connections[name] = {
-          host: config.host,
-          port: config.port || 61613,
-          username: config.username || '',
-          password: config.password || '',
-          ssl: config.ssl || false
-        }
-      }
-    }
-
-    return connections
+  // Get all configured connection names
+  getConfiguredConnections() {
+    return Object.keys(this.config).filter(name => 
+      this.config[name] && typeof this.config[name] === 'object' && this.config[name].host
+    )
   }
 
   // Check if any connections are configured
   hasConnections() {
-    return Object.keys(this.config).length > 0
+    return this.getConfiguredConnections().length > 0
   }
 }
 

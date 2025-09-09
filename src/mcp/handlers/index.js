@@ -22,8 +22,12 @@ export class ToolHandlers {
         // Connection Management Tools
         case 'list_connections':
           return await this.connectionHandlers.handleListConnections(args)
-        case 'add_connection':
-          return await this.connectionHandlers.handleAddConnection(args)
+        case 'connect_broker':
+          return await this.connectionHandlers.handleConnectBroker(args)
+        case 'connect_from_config':
+          return await this.connectionHandlers.handleConnectFromConfig(args)
+        case 'show_config':
+          return await this.connectionHandlers.handleShowConfig(args)
         case 'remove_connection':
           return await this.connectionHandlers.handleRemoveConnection(args)
         case 'test_connection':

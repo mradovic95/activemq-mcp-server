@@ -1,28 +1,20 @@
 {
-  "connections": {
-    "local": {
-      "host": "localhost",
-      "port": 61613,
-      "username": "",
-      "password": "",
-      "maxReconnectAttempts": 5,
-      "reconnectDelay": 5000
-    },
-    "production": {
-      "host": "prod-activemq.example.com",
-      "port": 61613,
-      "username": "app_user",
-      "password": "secure_password",
-      "maxReconnectAttempts": 10,
-      "reconnectDelay": 3000
-    },
-    "staging": {
-      "host": "staging-activemq.example.com",
-      "port": 61613,
-      "username": "stage_user",
-      "password": "stage_password",
-      "maxReconnectAttempts": 3,
-      "reconnectDelay": 2000
-    }
+  "local": {
+    "host": "localhost",
+    "port": 61613,
+    "username": "",
+    "password": ""
+  },
+  "production": {
+    "host": "prod-activemq.example.com",
+    "port": 61613,
+    "username": "app_user",
+    "password": "secure_password"
+  },
+  "staging": {
+    "host": "staging-activemq.example.com",
+    "port": 61613,
+    "username": "stage_user",
+    "password": "stage_password"
   }
 }

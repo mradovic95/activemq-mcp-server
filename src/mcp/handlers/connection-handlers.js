@@ -1,4 +1,5 @@
 import { logger } from '../../utils/logger.js'
+import { configManager } from '../../utils/config.js'
 
 export class ConnectionHandlers {
   constructor(connectionManager) {
@@ -40,7 +41,7 @@ export class ConnectionHandlers {
     }
   }
 
-  async handleAddConnection(args) {
+  async handleConnectBroker(args) {
     try {
       logger.info(`Adding connection '${args.connectionId}' to ${args.host}:${args.port || 61613}`)
       
@@ -216,6 +217,126 @@ export class ConnectionHandlers {
       }
     } catch (error) {
       logger.error(`Failed to get health status: ${error.message}`)
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error.message
+            }, null, 2)
+          }
+        ],
+        isError: true
+      }
+    }
+  }
+
+  async handleConnectFromConfig(args) {
+    try {
+      const configName = args.configName || 'default'
+      const connectionId = args.connectionId || configName
+      
+      logger.info(`Connecting to ActiveMQ broker using config '${configName}' as connection '${connectionId}'`)
+      
+      const config = configManager.getConnectionConfig(configName)
+      if (!config) {
+        throw new Error(`Configuration '${configName}' not found in config file`)
+      }
+
+      configManager.validateConnectionConfig(config)
+      
+      const connectionConfig = {
+        host: config.host,
+        port: config.port || 61613,
+        username: config.username || '',
+        password: config.password || '',
+        ssl: config.ssl || false
+      }
+      
+      await this.connectionManager.addConnection(connectionId, connectionConfig)
+      logger.info(`Successfully connected to ActiveMQ broker using config '${configName}': ${connectionId}`)
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              connectionId: connectionId,
+              configUsed: configName,
+              config: { ...connectionConfig, password: connectionConfig.password ? '***' : '' },
+              message: `Successfully connected to ActiveMQ broker as '${connectionId}' using config '${configName}'`
+            }, null, 2)
+          }
+        ]
+      }
+    } catch (error) {
+      logger.error(`Failed to connect using config: ${error.message}`)
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error.message,
+              configName: args.configName || 'default'
+            }, null, 2)
+          }
+        ],
+        isError: true
+      }
+    }
+  }
+
+  async handleShowConfig() {
+    try {
+      const configuredConnections = configManager.getConfiguredConnections()
+      
+      if (configuredConnections.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                configurations: [],
+                message: "No ActiveMQ broker configurations found in config file. Add configurations to use connect_from_config."
+              }, null, 2)
+            }
+          ]
+        }
+      }
+
+      const configs = {}
+      for (const name of configuredConnections) {
+        const config = configManager.getConnectionConfig(name)
+        configs[name] = {
+          host: config.host,
+          port: config.port || 61613,
+          username: config.username || '',
+          ssl: config.ssl || false,
+          hasPassword: !!config.password
+        }
+      }
+
+      logger.info(`Showing ${configuredConnections.length} ActiveMQ broker configuration(s)`)
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              configurations: configs,
+              total: configuredConnections.length,
+              message: `Found ${configuredConnections.length} ActiveMQ broker configuration${configuredConnections.length === 1 ? '' : 's'} available for use with connect_from_config`
+            }, null, 2)
+          }
+        ]
+      }
+    } catch (error) {
+      logger.error(`Failed to show configurations: ${error.message}`)
       return {
         content: [
           {

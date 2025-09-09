@@ -1,6 +1,6 @@
 # ActiveMQ MCP Server
 
-A Model Context Protocol (MCP) server that provides AI systems with seamless integration to ActiveMQ Classic message brokers. This server exposes ActiveMQ operations as MCP tools, enabling AI assistants to interact with message queues and topics programmatically.
+A Model Context Protocol (MCP) server that provides AI systems with seamless integration to ActiveMQ Classic message brokers using STOMP protocol. This server exposes ActiveMQ operations as MCP tools, enabling AI assistants to interact with message queues and topics programmatically.
 
 ## Features
 
@@ -39,16 +39,16 @@ npm link
 
 ### Basic Usage
 
-Start the MCP server with default settings (connects to localhost:8161):
+Start the MCP server (no connections are made automatically):
 
 ```bash
 npx activemq-mcp-server
 ```
 
-### With Custom Connection
+### View Configuration Status
 
 ```bash
-npx activemq-mcp-server --host broker.example.com --port 61616 --username myuser --password mypass
+npx activemq-mcp-server config
 ```
 
 ### Using Configuration File
@@ -57,22 +57,28 @@ Create a `config.json` file:
 
 ```json
 {
-  "connections": {
-    "primary": {
-      "host": "localhost",
-      "port": 8161,
-      "username": "admin",
-      "password": "admin"
-    }
+  "local": {
+    "host": "localhost",
+    "port": 61613,
+    "username": "admin",
+    "password": "admin"
+  },
+  "production": {
+    "host": "prod-activemq.example.com",
+    "port": 61613,
+    "username": "prod_user",
+    "password": "prod_pass"
   }
 }
 ```
 
-Start with configuration:
+Start server (configuration is loaded but connections are not established automatically):
 
 ```bash
-npx activemq-mcp-server --config config.json
+npx activemq-mcp-server
 ```
+
+Use `connect_from_config` tool to establish connections from configuration.
 
 ## Configuration
 
@@ -80,11 +86,12 @@ npx activemq-mcp-server --config config.json
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ACTIVEMQ_HOST` | ActiveMQ broker hostname | `localhost` |
-| `ACTIVEMQ_PORT` | ActiveMQ Web console port | `8161` |
-| `ACTIVEMQ_USERNAME` | Username for authentication | `""` |
-| `ACTIVEMQ_PASSWORD` | Password for authentication | `""` |
-| `ACTIVEMQ_CONFIG` | Path to configuration file | `./config.json` |
+| `ACTIVEMQ_HOST` | Default ActiveMQ broker hostname | `localhost` |
+| `ACTIVEMQ_PORT` | Default ActiveMQ STOMP port | `61613` |
+| `ACTIVEMQ_USERNAME` | Default username for authentication | `""` |
+| `ACTIVEMQ_PASSWORD` | Default password for authentication | `""` |
+| `ACTIVEMQ_SSL` | Enable SSL for default connection | `false` |
+| `ACTIVEMQ_CONFIG_PATH` | Path to configuration file | Auto-detected |
 
 ### Configuration File Format
 
@@ -92,27 +99,28 @@ The configuration file supports multiple broker connections:
 
 ```json
 {
-  "connections": {
-    "connection_id": {
-      "host": "broker-host",
-      "port": 8161,
-      "username": "optional-username",
-      "password": "optional-password",
-      "maxReconnectAttempts": 5,
-      "reconnectDelay": 5000
-    }
+  "connection_name": {
+    "host": "broker-host",
+    "port": 61613,
+    "username": "optional-username",
+    "password": "optional-password",
+    "ssl": false
   }
 }
 ```
 
+Configuration is loaded automatically from:
+1. `./activemq-config.json`
+2. `./config.json`
+3. Path specified in `ACTIVEMQ_CONFIG_PATH` environment variable
+
 ### Connection Parameters
 
 - `host` (required): ActiveMQ broker hostname or IP address
-- `port` (required): Web console port (typically 8161)
+- `port` (optional): STOMP port (default: 61613)
 - `username` (optional): Authentication username
 - `password` (optional): Authentication password
-- `maxReconnectAttempts` (optional): Maximum reconnection attempts (default: 5)
-- `reconnectDelay` (optional): Delay between reconnection attempts in ms (default: 5000)
+- `ssl` (optional): Enable SSL/TLS connection (default: false)
 
 ## MCP Tools
 
@@ -129,19 +137,41 @@ List all configured broker connections.
 }
 ```
 
-#### `add_connection`
-Dynamically add a new broker connection.
+#### `connect_broker`
+Connect to an ActiveMQ broker with manual configuration.
 
 ```json
 {
-  "name": "add_connection",
+  "name": "connect_broker",
   "arguments": {
     "connectionId": "mybroker",
     "host": "broker.example.com",
-    "port": 8161,
+    "port": 61613,
     "username": "user",
     "password": "pass"
   }
+}
+```
+
+#### `connect_from_config`
+Connect to an ActiveMQ broker using a named configuration from config file.
+
+```json
+{
+  "name": "connect_from_config",
+  "arguments": {
+    "configName": "production",
+    "connectionId": "prod-broker"
+  }
+}
+```
+
+#### `show_config`
+Show all ActiveMQ broker configurations available in the config file.
+
+```json
+{
+  "name": "show_config"
 }
 ```
 
@@ -165,7 +195,7 @@ Test connectivity to a broker without adding it.
   "name": "test_connection",
   "arguments": {
     "host": "broker.example.com",
-    "port": 8161,
+    "port": 61613,
     "username": "user",
     "password": "pass"
   }
@@ -396,27 +426,21 @@ Import connection configurations from backup.
 # Basic start
 npx activemq-mcp-server
 
-# With options
-npx activemq-mcp-server --host mybroker.com --port 8161 --username admin --password secret
-
-# Skip default connection
-npx activemq-mcp-server --no-default
-
-# With configuration file
-npx activemq-mcp-server --config my-config.json
-
 # With custom log level
 npx activemq-mcp-server --log-level debug
+
+# Show configuration status
+npx activemq-mcp-server config
+
+# List available tools
+npx activemq-mcp-server tools
 ```
 
 ### Test Connection
 
 ```bash
-# Test default connection
-npx activemq-mcp-server test
-
 # Test specific connection
-npx activemq-mcp-server test --host broker.example.com --port 8161 --username user --password pass
+npx activemq-mcp-server test --host broker.example.com --port 61613 --username user --password pass
 ```
 
 ### List Available Tools
@@ -430,20 +454,28 @@ npx activemq-mcp-server tools
 ### Quick ActiveMQ Setup with Docker
 
 ```bash
-# Run ActiveMQ Classic with REST API enabled
+# Run ActiveMQ Classic with STOMP enabled
 docker run -d \
   --name activemq \
   -p 61616:61616 \
+  -p 61613:61613 \
   -p 8161:8161 \
   apache/activemq-classic:latest
 
-# Access web console at http://localhost:8161 (admin/admin)
-# REST API endpoint available at localhost:8161
+# STOMP protocol available at localhost:61613
+# Web console at http://localhost:8161 (admin/admin)
 ```
 
 ### ActiveMQ Configuration
 
-Ensure web console is enabled in ActiveMQ configuration. The web console should be accessible at port 8161 (default configuration).
+Ensure STOMP transport connector is enabled in ActiveMQ configuration. The STOMP connector should be accessible at port 61613 (default configuration).
+
+Example ActiveMQ configuration (`activemq.xml`):
+```xml
+<transportConnectors>
+  <transportConnector name="stomp" uri="stomp://0.0.0.0:61613"/>
+</transportConnectors>
+```
 
 ## Integration with AI Systems
 
@@ -456,7 +488,7 @@ Add to your Claude Desktop configuration:
   "mcpServers": {
     "activemq": {
       "command": "npx",
-      "args": ["activemq-mcp-server", "--host", "localhost", "--port", "8161"]
+      "args": ["activemq-mcp-server"]
     }
   }
 }
@@ -487,25 +519,25 @@ npx activemq-mcp-server
 # Create config.json with multiple brokers
 cat > config.json << EOF
 {
-  "connections": {
-    "production": {
-      "host": "prod-mq.example.com",
-      "port": 8161,
-      "username": "prod_user",
-      "password": "prod_pass"
-    },
-    "staging": {
-      "host": "stage-mq.example.com",
-      "port": 8161,
-      "username": "stage_user",
-      "password": "stage_pass"
-    }
+  "production": {
+    "host": "prod-mq.example.com",
+    "port": 61613,
+    "username": "prod_user",
+    "password": "prod_pass"
+  },
+  "staging": {
+    "host": "stage-mq.example.com",
+    "port": 61613,
+    "username": "stage_user",
+    "password": "stage_pass"
   }
 }
 EOF
 
-# Start with configuration
-npx activemq-mcp-server --config config.json --no-default
+# Start server
+npx activemq-mcp-server
+
+# Use connect_from_config tool to connect to specific brokers
 ```
 
 ## Monitoring and Health Checks
@@ -531,13 +563,13 @@ The server provides built-in health monitoring:
 1. **Connection Failed**
    ```bash
    # Test connectivity
-   npx activemq-mcp-server test --host your-broker --port 8161
+   npx activemq-mcp-server test --host your-broker --port 61613
    ```
 
-2. **Web Console Not Accessible**
-   - Ensure web console is enabled in ActiveMQ configuration
-   - Check that port 8161 is open and accessible
-   - Verify ActiveMQ is running with web console enabled
+2. **STOMP Not Accessible**
+   - Ensure STOMP transport connector is enabled in ActiveMQ configuration
+   - Check that port 61613 is open and accessible
+   - Verify ActiveMQ is running with STOMP transport connector enabled
 
 3. **Authentication Issues**
    - Verify username/password are correct

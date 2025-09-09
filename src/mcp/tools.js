@@ -9,8 +9,8 @@ export const TOOLS = [
     }
   },
   {
-    name: "add_connection",
-    description: "Add a new ActiveMQ broker connection",
+    name: "connect_broker",
+    description: "Connect to an ActiveMQ broker with manual configuration",
     inputSchema: {
       type: "object",
       properties: {
@@ -370,6 +370,34 @@ export const TOOLS = [
         }
       },
       required: ["connections"]
+    }
+  },
+  {
+    name: "connect_from_config",
+    description: "Connect to an ActiveMQ broker using a named configuration from config file",
+    inputSchema: {
+      type: "object",
+      properties: {
+        configName: {
+          type: "string",
+          description: "Name of the connection configuration (defaults to 'default' if not provided)",
+          default: "default"
+        },
+        connectionId: {
+          type: "string",
+          description: "Custom ID for this connection (optional, will use configName if not provided)"
+        }
+      },
+      additionalProperties: false
+    }
+  },
+  {
+    name: "show_config",
+    description: "Show all ActiveMQ broker configurations available in the config file that can be used with connect_from_config",
+    inputSchema: {
+      type: "object",
+      properties: {},
+      additionalProperties: false
     }
   },
   {

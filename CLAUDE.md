@@ -44,7 +44,7 @@ This ActiveMQ MCP Server is designed as a Model Context Protocol (MCP) server th
   - Setup graceful shutdown handlers
   - Initialize and configure MCP server instance
   - Handle process lifecycle and logging
-  - Load configured connections and setup default connections
+  - Load and display configuration status (connections are not established automatically)
 
 ### 2. MCP Server (`src/server.js`)
 - **Purpose**: Core MCP protocol handler
@@ -170,6 +170,57 @@ class ConnectionManager extends EventEmitter {
   }
 }
 ```
+
+## Configuration System
+
+### Configuration Loading Strategy
+The ActiveMQ MCP Server follows a configuration-first, connect-on-demand approach similar to database-mcp-server:
+
+- **No Auto-Connect**: Configuration is loaded at startup but connections are NOT established automatically
+- **On-Demand Connection**: Use `connect_from_config` tool to establish connections from configuration
+- **Multiple Sources**: Configuration loaded from multiple file paths and environment variables
+- **Validation**: Configuration validation before connection attempts
+- **Transparency**: `show_config` tool to inspect available configurations
+
+### Configuration Flow
+```
+1. Server Startup
+   ↓
+2. Load Config Files (activemq-config.json, config.json, or ACTIVEMQ_CONFIG_PATH)
+   ↓
+3. Load Environment Variables (ACTIVEMQ_HOST, ACTIVEMQ_PORT, etc.)
+   ↓
+4. Display Configuration Status
+   ↓
+5. Server Ready (no connections established)
+   ↓
+6. AI Uses connect_from_config Tool
+   ↓
+7. Connection Established On-Demand
+```
+
+### New Configuration Tools
+
+#### connect_from_config
+```javascript
+// Connect to broker using named configuration
+{
+  "configName": "production",     // Name from config file
+  "connectionId": "prod-broker"   // Optional custom connection ID
+}
+```
+
+#### show_config
+```javascript
+// Display all available configurations
+{} // No parameters needed
+```
+
+This approach provides several benefits:
+- **Security**: No automatic connections reduce attack surface
+- **Flexibility**: Connect only to needed brokers
+- **Visibility**: Clear view of available configurations
+- **Control**: Explicit connection management
 
 ## Development Best Practices
 
