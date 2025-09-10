@@ -1,9 +1,28 @@
+import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js'
 import { TOOLS } from './mcp/tools.js'
 import { ToolHandlers } from './mcp/handlers/index.js'
 import { logger } from './utils/logger.js'
 
 class ActiveMQMCPServer {
   constructor() {
+    this.server = new Server(
+      {
+        name: 'activemq-mcp-server',
+        version: '1.0.0',
+        description: 'MCP server for ActiveMQ connections and messaging'
+      },
+      {
+        capabilities: {
+          tools: {}
+        }
+      }
+    )
+
     this.toolHandlers = new ToolHandlers()
     this.setupHandlers()
     this.setupErrorHandlers()
@@ -11,143 +30,48 @@ class ActiveMQMCPServer {
   }
 
   setupHandlers() {
-    process.stdin.setEncoding('utf8')
-    process.stdin.on('readable', () => {
-      const chunk = process.stdin.read()
-      if (chunk !== null) {
-        this.handleInput(chunk)
+    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+      logger.debug('Listing available tools')
+      return {
+        tools: TOOLS.map(tool => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema
+        }))
+      }
+    })
+
+    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+      const { name, arguments: args } = request.params
+      logger.debug(`Tool called: ${name}`)
+      
+      try {
+        const result = await this.toolHandlers.handleTool(name, args || {})
+        return result
+      } catch (error) {
+        logger.error(`Tool execution error for ${name}:`, error)
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: false,
+                error: `Tool execution failed: ${error.message}`,
+                tool: name
+              }, null, 2)
+            }
+          ],
+          isError: true
+        }
       }
     })
   }
 
-  handleInput(input) {
-    try {
-      const lines = input.trim().split('\n')
-      
-      for (const line of lines) {
-        if (line.trim()) {
-          logger.debug('Received MCP request', { line })
-          const request = JSON.parse(line)
-          this.processRequest(request)
-        }
-      }
-    } catch (error) {
-      logger.error('Failed to parse MCP request', { 
-        input: input.substring(0, 200), 
-        error: error.message 
-      })
-      this.sendError('invalid_request', 'Invalid JSON input', error.message)
-    }
-  }
-
-  async processRequest(request) {
-    const { id, method, params } = request
-
-    logger.debug('Processing MCP request', { id, method, params })
-
-    try {
-      switch (method) {
-        case 'initialize':
-          logger.info('MCP client initializing')
-          this.sendResponse(id, {
-            protocolVersion: '2024-11-05',
-            capabilities: {
-              tools: {}
-            },
-            serverInfo: {
-              name: 'activemq-mcp-server',
-              version: '1.0.0'
-            }
-          })
-          break
-
-        case 'tools/list':
-          logger.debug('Listing MCP tools')
-          this.sendResponse(id, {
-            tools: TOOLS.map(tool => ({
-              name: tool.name,
-              description: tool.description,
-              inputSchema: tool.inputSchema
-            }))
-          })
-          break
-
-        case 'tools/call':
-          const toolName = params?.name
-          const toolArgs = params?.arguments || {}
-          
-          if (!toolName) {
-            throw new Error('Tool name is required')
-          }
-          
-          logger.info('Executing MCP tool', { tool: toolName, args: toolArgs })
-          const result = await this.toolHandlers.handleTool(toolName, toolArgs)
-          this.sendResponse(id, result)
-          break
-
-        case 'ping':
-          logger.debug('MCP ping received')
-          this.sendResponse(id, {})
-          break
-
-        default:
-          logger.warn('Unknown MCP method', { method })
-          this.sendError(id, 'method_not_found', `Method '${method}' not found`)
-      }
-    } catch (error) {
-      logger.error('MCP request processing error', { 
-        id, 
-        method, 
-        error: error.message,
-        stack: error.stack 
-      })
-      this.sendError(id, 'internal_error', error.message)
-    }
-  }
-
-  sendResponse(id, result) {
-    const response = {
-      jsonrpc: '2.0',
-      id,
-      result
-    }
-    process.stdout.write(JSON.stringify(response) + '\n')
-  }
-
-  sendError(id, code, message, data = null) {
-    const response = {
-      jsonrpc: '2.0',
-      id,
-      error: {
-        code: this.getErrorCode(code),
-        message,
-        data
-      }
-    }
-    process.stdout.write(JSON.stringify(response) + '\n')
-  }
-
-  sendNotification(method, params) {
-    const notification = {
-      jsonrpc: '2.0',
-      method,
-      params
-    }
-    process.stdout.write(JSON.stringify(notification) + '\n')
-  }
-
-  getErrorCode(code) {
-    const codes = {
-      'parse_error': -32700,
-      'invalid_request': -32600,
-      'method_not_found': -32601,
-      'invalid_params': -32602,
-      'internal_error': -32603
-    }
-    return codes[code] || -32603
-  }
-
   setupErrorHandlers() {
+    this.server.onerror = (error) => {
+      logger.error('[MCP Server] Error occurred:', error)
+    }
+
     process.on('SIGINT', async () => {
       logger.info('Received SIGINT, shutting down gracefully...')
       await this.shutdown()
@@ -174,15 +98,10 @@ class ActiveMQMCPServer {
   }
 
   async start() {
+    const transport = new StdioServerTransport()
     logger.info('Starting ActiveMQ MCP Server...')
     
-    // Connection manager no longer uses events - simplified architecture
-
-    this.sendNotification('initialized', { 
-      message: 'ActiveMQ MCP Server started',
-      timestamp: new Date().toISOString()
-    })
-    
+    await this.server.connect(transport)
     logger.info('ActiveMQ MCP Server started and ready for connections')
   }
 
@@ -190,10 +109,6 @@ class ActiveMQMCPServer {
     logger.info('Shutting down ActiveMQ MCP Server...')
     try {
       await this.toolHandlers.cleanup()
-      this.sendNotification('shutdown', { 
-        message: 'Server shutting down gracefully',
-        timestamp: new Date().toISOString()
-      })
       logger.info('ActiveMQ MCP Server shutdown complete')
     } catch (error) {
       logger.error('Error during shutdown:', error)
