@@ -1,6 +1,6 @@
 # ActiveMQ MCP Server
 
-A Model Context Protocol (MCP) server that provides AI systems with seamless integration to ActiveMQ Classic message brokers using STOMP protocol. This server exposes ActiveMQ operations as MCP tools, enabling AI assistants to interact with message queues and topics programmatically.
+A Model Context Protocol (MCP) server that provides AI systems with seamless integration to ActiveMQ Classic message brokers using REST API. This server exposes ActiveMQ operations as MCP tools, enabling AI assistants to interact with message queues and topics programmatically.
 
 ## Features
 
@@ -59,13 +59,13 @@ Create a `config.json` file:
 {
   "local": {
     "host": "localhost",
-    "port": 61613,
+    "port": 8161,
     "username": "admin",
     "password": "admin"
   },
   "production": {
     "host": "prod-activemq.example.com",
-    "port": 61613,
+    "port": 8161,
     "username": "prod_user",
     "password": "prod_pass"
   }
@@ -87,7 +87,7 @@ Use `connect_from_config` tool to establish connections from configuration.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ACTIVEMQ_HOST` | Default ActiveMQ broker hostname | `localhost` |
-| `ACTIVEMQ_PORT` | Default ActiveMQ STOMP port | `61613` |
+| `ACTIVEMQ_PORT` | Default ActiveMQ web console port | `8161` |
 | `ACTIVEMQ_USERNAME` | Default username for authentication | `""` |
 | `ACTIVEMQ_PASSWORD` | Default password for authentication | `""` |
 | `ACTIVEMQ_SSL` | Enable SSL for default connection | `false` |
@@ -101,7 +101,7 @@ The configuration file supports multiple broker connections:
 {
   "connection_name": {
     "host": "broker-host",
-    "port": 61613,
+    "port": 8161,
     "username": "optional-username",
     "password": "optional-password",
     "ssl": false
@@ -117,7 +117,7 @@ Configuration is loaded automatically from:
 ### Connection Parameters
 
 - `host` (required): ActiveMQ broker hostname or IP address
-- `port` (optional): STOMP port (default: 61613)
+- `port` (optional): Web console port (default: 8161)
 - `username` (optional): Authentication username
 - `password` (optional): Authentication password
 - `ssl` (optional): Enable SSL/TLS connection (default: false)
@@ -146,7 +146,7 @@ Connect to an ActiveMQ broker with manual configuration.
   "arguments": {
     "connectionId": "mybroker",
     "host": "broker.example.com",
-    "port": 61613,
+    "port": 8161,
     "username": "user",
     "password": "pass"
   }
@@ -195,7 +195,7 @@ Test connectivity to a broker without adding it.
   "name": "test_connection",
   "arguments": {
     "host": "broker.example.com",
-    "port": 61613,
+    "port": 8161,
     "username": "user",
     "password": "pass"
   }
@@ -440,7 +440,7 @@ npx activemq-mcp-server tools
 
 ```bash
 # Test specific connection
-npx activemq-mcp-server test --host broker.example.com --port 61613 --username user --password pass
+npx activemq-mcp-server test --host broker.example.com --port 8161 --username user --password pass
 ```
 
 ### List Available Tools
@@ -454,28 +454,24 @@ npx activemq-mcp-server tools
 ### Quick ActiveMQ Setup with Docker
 
 ```bash
-# Run ActiveMQ Classic with STOMP enabled
+# Run ActiveMQ Classic with web console enabled
 docker run -d \
   --name activemq \
   -p 61616:61616 \
-  -p 61613:61613 \
   -p 8161:8161 \
   apache/activemq-classic:latest
 
-# STOMP protocol available at localhost:61613
-# Web console at http://localhost:8161 (admin/admin)
+# Web console available at http://localhost:8161 (admin/admin)
+# REST API available at http://localhost:8161/api/
 ```
 
 ### ActiveMQ Configuration
 
-Ensure STOMP transport connector is enabled in ActiveMQ configuration. The STOMP connector should be accessible at port 61613 (default configuration).
+The server uses ActiveMQ's REST API via the web console. Ensure the web console is enabled and accessible at port 8161 (default configuration).
 
-Example ActiveMQ configuration (`activemq.xml`):
-```xml
-<transportConnectors>
-  <transportConnector name="stomp" uri="stomp://0.0.0.0:61613"/>
-</transportConnectors>
-```
+The REST API endpoints used:
+- `/api/message/` - Send and consume messages
+- `/api/jolokia/` - Broker management and statistics
 
 ## Integration with AI Systems
 
@@ -521,13 +517,13 @@ cat > config.json << EOF
 {
   "production": {
     "host": "prod-mq.example.com",
-    "port": 61613,
+    "port": 8161,
     "username": "prod_user",
     "password": "prod_pass"
   },
   "staging": {
     "host": "stage-mq.example.com",
-    "port": 61613,
+    "port": 8161,
     "username": "stage_user",
     "password": "stage_pass"
   }
@@ -563,13 +559,13 @@ The server provides built-in health monitoring:
 1. **Connection Failed**
    ```bash
    # Test connectivity
-   npx activemq-mcp-server test --host your-broker --port 61613
+   npx activemq-mcp-server test --host your-broker --port 8161
    ```
 
-2. **STOMP Not Accessible**
-   - Ensure STOMP transport connector is enabled in ActiveMQ configuration
-   - Check that port 61613 is open and accessible
-   - Verify ActiveMQ is running with STOMP transport connector enabled
+2. **REST API Not Accessible**
+   - Ensure web console is enabled in ActiveMQ configuration
+   - Check that port 8161 is open and accessible
+   - Verify ActiveMQ is running with web console enabled
 
 3. **Authentication Issues**
    - Verify username/password are correct
@@ -609,16 +605,24 @@ npm test
 
 ```
 src/
-├── server.js              # Main entry point and CLI
-├── mcp-server.js          # MCP protocol implementation
-├── activemq-client.js     # ActiveMQ REST API client
-├── connection-manager.js  # Multi-broker connection management
-└── tools/                 # MCP tool implementations
-    ├── index.js           # Tool registry
-    ├── connection-tools.js # Connection management tools
-    ├── queue-tools.js     # Queue operation tools
-    ├── topic-tools.js     # Topic operation tools
-    └── broker-tools.js    # Broker information tools
+├── server.js              # Main MCP server implementation
+├── mcp/                   # MCP protocol handlers
+│   ├── tools.js           # Tool definitions and schemas
+│   └── handlers/          # Business logic handlers
+├── activemq/              # Clean layered architecture
+│   ├── client/            # Infrastructure layer
+│   │   ├── core-client.js # HTTP client, connection, utilities
+│   │   └── index.js       # Client exports
+│   ├── service/           # Business logic layer
+│   │   ├── activemq-facade.js     # Facade pattern - unified interface
+│   │   ├── connection-service.js  # Connection lifecycle operations
+│   │   ├── queue-service.js       # Queue business operations
+│   │   ├── topic-service.js       # Topic business operations
+│   │   ├── broker-service.js      # Broker management operations
+│   │   └── index.js              # Service exports
+│   └── connection-manager.js      # Multi-broker connection management
+└── utils/
+    └── logger.js          # Structured logging
 ```
 
 ## Contributing

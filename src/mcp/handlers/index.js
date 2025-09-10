@@ -1,4 +1,4 @@
-import { ConnectionManager } from '../../activemq/connection-manager.js'
+import { ConnectionManager } from '../../core/connection-manager.js'
 import { logger } from '../../utils/logger.js'
 import { ConnectionHandlers } from './connection-handlers.js'
 import { QueueHandlers } from './queue-handlers.js'
@@ -8,7 +8,7 @@ import { BrokerHandlers } from './broker-handlers.js'
 export class ToolHandlers {
   constructor() {
     this.connectionManager = new ConnectionManager()
-    
+
     // Initialize all handler classes
     this.connectionHandlers = new ConnectionHandlers(this.connectionManager)
     this.queueHandlers = new QueueHandlers(this.connectionManager)

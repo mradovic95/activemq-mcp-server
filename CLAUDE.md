@@ -2,9 +2,9 @@
 
 ## Architecture Overview
 
-This ActiveMQ MCP Server is designed as a Model Context Protocol (MCP) server that enables AI assistants like Claude to connect to and manage ActiveMQ message brokers during conversations. The architecture follows modern Node.js best practices with extensible, maintainable code for messaging queue and topic operations.
+This ActiveMQ MCP Server is designed as a Model Context Protocol (MCP) server that enables AI assistants like Claude to connect to and manage ActiveMQ message brokers during conversations. The architecture follows clean layered architecture principles with composition patterns, using ActiveMQ's REST API for reliable message broker operations.
 
-### High-Level Architecture
+### Clean Layered Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -17,27 +17,42 @@ This ActiveMQ MCP Server is designed as a Model Context Protocol (MCP) server th
                                               │   Coordinator   │
                                               └────────┬────────┘
                                                        │
+                                              ┌────────┴────────┐
+                                              │ Connection      │
+                                              │ Manager         │
+                                              └────────┬────────┘
+                                                       │
+                                              ┌────────┴────────┐
+                                              │ ActiveMQFacade  │
+                                              │ (Composition)   │
+                                              └────────┬────────┘
+                                                       │
                         ┌──────────────────────────────┼──────────────────────────────┐
                         │                              │                              │
                 ┌───────┴────────┐            ┌────────┴────────┐            ┌────────┴────────┐
                 │  Connection    │            │     Queue       │            │     Topic       │
-                │   Handlers     │            │    Handlers     │            │    Handlers     │
+                │   Service      │            │    Service      │            │    Service      │
                 └───────┬────────┘            └────────┬────────┘            └────────┬────────┘
                         │                              │                              │
-                ┌───────┴────────┐            ┌────────┴────────┐            ┌────────┴────────┐
-                │    Broker      │            │   ActiveMQ      │            │   ActiveMQ      │
-                │   Handlers     │            │    Queues       │            │    Topics       │
-                └───────┬────────┘            └─────────────────┘            └─────────────────┘
-                        │
-                ┌───────┴────────┐
-                │ Connection     │
-                │ Manager        │
-                └────────────────┘
+                        └──────────────────┬───────────┘                              │
+                                          │                              ┌────────┴────────┐
+                                          │                              │     Broker      │
+                                          │                              │    Service      │
+                                          │                              └────────┬────────┘
+                                          │                                       │
+                                          └────────┬──────────────────────────────┘
+                                                   │
+                                          ┌────────┴────────┐
+                                          │   Core Client   │
+                                          │ (HTTP + Utils)  │
+                                          └─────────────────┘
 ```
 
-## Core Components
+## Clean Layered Architecture Components
 
-### 1. CLI Entry Point (`bin/cli.js`)
+### Infrastructure Layer
+
+#### 1. CLI Entry Point (`bin/cli.js`)
 - **Purpose**: Command-line interface and application bootstrap
 - **Responsibilities**: 
   - Parse command-line options and configuration files
@@ -46,7 +61,7 @@ This ActiveMQ MCP Server is designed as a Model Context Protocol (MCP) server th
   - Handle process lifecycle and logging
   - Load and display configuration status (connections are not established automatically)
 
-### 2. MCP Server (`src/server.js`)
+#### 2. MCP Server (`src/server.js`)
 - **Purpose**: Core MCP protocol handler
 - **Responsibilities**:
   - Handle MCP JSON-RPC protocol communication
@@ -55,7 +70,39 @@ This ActiveMQ MCP Server is designed as a Model Context Protocol (MCP) server th
   - Manage stdin/stdout communication with MCP clients
   - Handle error responses and notifications
 
-### 3. Tool Definitions (`src/mcp/tools.js`)
+#### 3. Core Client (`src/activemq/client/core-client.js`)
+- **Purpose**: Infrastructure layer - HTTP client and utilities
+- **Pattern**: Single shared instance
+- **Responsibilities**:
+  - HTTP client configuration and management (axios)
+  - Connection lifecycle management
+  - Broker name discovery and caching
+  - Destination parsing utilities
+  - Connection state management
+  - No business logic - pure infrastructure
+
+### Business Logic Layer
+
+#### 4. Domain Services (`src/activemq/service/`)
+- **Purpose**: Domain-specific business logic implementations
+- **Pattern**: Composition - services operate on shared core client
+- **Components**:
+  - `connection-service.js`: Connection lifecycle operations
+  - `queue-service.js`: Queue operations (send, receive, browse, purge)
+  - `topic-service.js`: Topic operations (publish, subscribe)
+  - `broker-service.js`: Broker management and system monitoring
+
+#### 5. ActiveMQ Facade (`src/activemq/service/activemq-facade.js`)
+- **Purpose**: Facade pattern - unified interface via pure delegation
+- **Pattern**: Composition + Facade - composes core + services
+- **Responsibilities**:
+  - Provide unified interface for all ActiveMQ operations
+  - Pure delegation to appropriate services (no direct core access)
+  - Maintain single API surface for external consumers
+
+### Coordination Layer
+
+#### 6. Tool Definitions (`src/mcp/tools.js`)
 - **Purpose**: Centralized tool schema definitions
 - **Pattern**: Declarative configuration pattern
 - **Responsibilities**:
@@ -63,78 +110,90 @@ This ActiveMQ MCP Server is designed as a Model Context Protocol (MCP) server th
   - Specify required and optional parameters
   - Provide parameter validation rules and defaults
 
-### 4. Handler System (`src/mcp/handlers/`)
-- **Purpose**: Domain-specific business logic implementations
-- **Pattern**: Separated handler pattern with functional grouping
+#### 7. Handler System (`src/mcp/handlers/`)
+- **Purpose**: MCP tool implementations that coordinate business logic
+- **Pattern**: Handler pattern with facade delegation
 - **Components**:
   - `index.js`: Main handler coordinator and router
-  - `connection-handlers.js`: Connection management operations
-  - `queue-handlers.js`: Queue operations (send, receive, browse, purge)
-  - `topic-handlers.js`: Topic operations (publish, subscribe)
-  - `broker-handlers.js`: Broker management and system monitoring
+  - `connection-handlers.js`: Connection management tool implementations
+  - `queue-handlers.js`: Queue operation tool implementations
+  - `topic-handlers.js`: Topic operation tool implementations
+  - `broker-handlers.js`: Broker management tool implementations
 
-### 5. Connection Manager (`src/activemq/connection-manager.js`)
-- **Purpose**: Manages all ActiveMQ broker connections
-- **Pattern**: Singleton-like manager pattern with event emission
+#### 8. Connection Manager (`src/activemq/connection-manager.js`)
+- **Purpose**: Manages multiple ActiveMQ broker connections
+- **Pattern**: Manager pattern without events (simplified)
 - **Responsibilities**:
-  - Maintain named connection registry using STOMP protocol
+  - Maintain named connection registry using REST API
   - Handle connection pooling and lifecycle management
   - Provide connection testing and health monitoring
-  - Manage authentication and SSL/TLS connections
-  - Emit events for connection status changes
+  - Manage authentication for web console access
+  - No event emission - simplified direct method calls
 
-### 6. ActiveMQ Client (`src/activemq/activemq-client.js`)
-- **Purpose**: Low-level ActiveMQ STOMP client wrapper
+### Utilities
+
+#### 9. Logger (`src/utils/logger.js`)
+- **Purpose**: Structured logging with configurable levels
 - **Responsibilities**:
-  - Abstract STOMP protocol complexities
-  - Provide unified interface for queue and topic operations
-  - Handle message serialization/deserialization
-  - Manage connection state and reconnection logic
-  - Support both persistent and temporary destinations
+  - Consistent error formatting and context
+  - Request timing and performance metrics
+  - MCP mode detection for appropriate log formatting
 
-### 7. Utilities (`src/utils/logger.js`)
-- **Logger**: Structured logging with configurable levels
-- **Error Handling**: Consistent error formatting and context
-- **Performance**: Request timing and performance metrics
+## Clean Architecture Patterns
 
-## Design Patterns Used
+### 1. Layered Architecture
+The system is organized into distinct layers with clear responsibilities:
 
-### 1. Separated Handler Pattern (Business Logic)
-Each handler class focuses on a specific domain with clean separation:
-```javascript
-class QueueHandlers {
-  constructor(connectionManager) {
-    this.connectionManager = connectionManager
-  }
-  
-  async handleSendMessage(args) { /* Queue-specific logic */ }
-  async handleConsumeMessage(args) { /* Queue-specific logic */ }
-  async handleBrowseMessages(args) { /* Queue-specific logic */ }
-}
+```
+┌─────────────────────────┐
+│    Coordination Layer   │  ← MCP Handlers, Connection Manager
+├─────────────────────────┤
+│   Business Logic Layer  │  ← Services, Facade  
+├─────────────────────────┤
+│   Infrastructure Layer  │  ← Core Client, HTTP, Utilities
+└─────────────────────────┘
 ```
 
-### 2. Coordinator Pattern (Handler Management)
-Main handler coordinator routes requests to appropriate domain handlers:
+### 2. Composition Over Inheritance
+All components use composition instead of inheritance:
 ```javascript
-class ToolHandlers {
-  constructor() {
-    this.connectionHandlers = new ConnectionHandlers(this.connectionManager)
-    this.queueHandlers = new QueueHandlers(this.connectionManager)
-    this.topicHandlers = new TopicHandlers(this.connectionManager)
-    this.brokerHandlers = new BrokerHandlers(this.connectionManager)
+// Services compose infrastructure
+class QueueService {
+  constructor(core) {
+    this.core = core; // Composition, not inheritance
   }
-  
-  async handleTool(name, args) {
-    switch (name) {
-      case 'send_message': return this.queueHandlers.handleSendMessage(args)
-      case 'publish_message': return this.topicHandlers.handlePublishMessage(args)
-      // ... route to appropriate handler
-    }
+}
+
+// Facade composes services
+class ActiveMQFacade {
+  constructor(config) {
+    this.core = new CoreClient(config);
+    this.queueService = new QueueService(this.core);
+    this.topicService = new TopicService(this.core);
   }
 }
 ```
 
-### 3. Declarative Configuration Pattern (Tool Definitions)
+### 3. Facade Pattern
+The facade provides a unified interface through pure delegation:
+```javascript
+class ActiveMQFacade {
+  // Facade ONLY delegates - no direct core access
+  isConnected() {
+    return this.connectionService.isConnected(); // Delegate to service
+  }
+  
+  async sendMessage(destination, message, headers) {
+    return this.queueService.sendMessage(destination, message, headers); // Delegate to service
+  }
+  
+  async getBrokerInfo() {
+    return this.brokerService.getBrokerInfo(); // Delegate to service
+  }
+}
+```
+
+### 4. Declarative Configuration Pattern (Tool Definitions)
 Tools are defined declaratively separate from implementation:
 ```javascript
 export const TOOLS = [
@@ -150,26 +209,59 @@ export const TOOLS = [
 ]
 ```
 
-### 4. Registry Pattern (Connection Management)
+### 5. Registry Pattern (Connection Management)
 ```javascript
 class ConnectionManager {
   constructor() {
-    this.connections = new Map() // Registry of active connections
-    this.clients = new Map()     // Registry of STOMP clients
+    this.connections = new Map() // Registry of facade instances
   }
 }
 ```
 
-### 5. Event-Driven Pattern (Connection Events)
-Connection manager emits events for status changes:
+### 6. No Events Pattern (Simplified)
+The architecture avoids event complexity in favor of direct method calls:
 ```javascript
-class ConnectionManager extends EventEmitter {
+// No EventEmitter inheritance
+class ConnectionManager {
   async addConnection(id, config) {
-    // ... connection logic
-    this.emit('connection_established', id)
+    const client = new ActiveMQFacade(config);
+    await client.connect();
+    this.connections.set(id, client); // Direct storage, no events
+    return client;
   }
 }
 ```
+
+## Architectural Benefits
+
+### Clean Separation of Concerns
+- **Infrastructure Layer**: Handles HTTP, connection, utilities (CoreClient)
+- **Business Logic Layer**: Handles domain operations (Services, Facade)
+- **Coordination Layer**: Handles MCP protocol and routing (Handlers, Manager)
+
+### No Event Complexity
+- Removed EventEmitter inheritance and event-driven patterns
+- Direct method calls and return values
+- Simplified error handling and testing
+- No event timing or ordering issues
+
+### Perfect Composition
+- Single shared CoreClient instance across all services
+- Services operate ON infrastructure, not inherit FROM it
+- Facade delegates TO services, not access infrastructure directly
+- Clear dependency flow: Coordination → Business → Infrastructure
+
+### Maintainability
+- Each layer can evolve independently
+- Business logic isolated from infrastructure concerns
+- Easy to test each layer in isolation
+- Clear boundaries and responsibilities
+
+### Performance
+- Single HTTP client instance (no duplication)
+- Shared connection state across all services
+- No event overhead or listener management
+- Efficient resource utilization
 
 ## Configuration System
 

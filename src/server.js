@@ -176,40 +176,7 @@ class ActiveMQMCPServer {
   async start() {
     logger.info('Starting ActiveMQ MCP Server...')
     
-    // Setup connection manager event listeners for notifications
-    this.toolHandlers.connectionManager.on('connection_established', (connectionId) => {
-      this.sendNotification('connection_status', {
-        connectionId,
-        status: 'connected',
-        timestamp: new Date().toISOString()
-      })
-    })
-
-    this.toolHandlers.connectionManager.on('connection_error', (connectionId, error) => {
-      this.sendNotification('connection_status', {
-        connectionId,
-        status: 'error',
-        error: error.message,
-        timestamp: new Date().toISOString()
-      })
-    })
-
-    this.toolHandlers.connectionManager.on('connection_lost', (connectionId) => {
-      this.sendNotification('connection_status', {
-        connectionId,
-        status: 'disconnected',
-        timestamp: new Date().toISOString()
-      })
-    })
-
-    this.toolHandlers.connectionManager.on('health_check_failed', (connectionId, error) => {
-      this.sendNotification('health_check', {
-        connectionId,
-        status: 'failed',
-        error: error ? error.message : 'Health check failed',
-        timestamp: new Date().toISOString()
-      })
-    })
+    // Connection manager no longer uses events - simplified architecture
 
     this.sendNotification('initialized', { 
       message: 'ActiveMQ MCP Server started',
