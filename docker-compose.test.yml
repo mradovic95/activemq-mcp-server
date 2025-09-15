@@ -1,0 +1,16 @@
+services:
+  activemq:
+    image: rmohr/activemq:5.15.9
+    platform: linux/amd64
+    ports:
+      - "61616:61616"  # STOMP
+      - "8161:8161"    # Web Console
+    environment:
+      - ACTIVEMQ_ADMIN_LOGIN=admin
+      - ACTIVEMQ_ADMIN_PASSCODE=admin
+    healthcheck:
+      test: ["CMD-SHELL", "netstat -an | grep :8161 | grep LISTEN || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
