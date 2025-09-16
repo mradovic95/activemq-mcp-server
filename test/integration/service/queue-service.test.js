@@ -101,8 +101,9 @@ describe('QueueService Integration Tests', () => {
 			expect(message).toBeTruthy()
 			expect(message.body).toBe(testMessage)
 			expect(message.headers).toBeDefined()
-			
-			// AND - Queue should be empty after consumption
+
+			// AND - Queue should be empty after consumption (wait for statistics to update)
+			await new Promise(resolve => setTimeout(resolve, 1000))
 			const queueInfoAfter = await sut.getQueueInfo(testQueueName)
 			expect(queueInfoAfter.size).toBe(0)
 			expect(queueInfoAfter.dequeueCount).toBe(1)
