@@ -40,10 +40,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-username/activemq-mcp-server.git"
+    "url": "git+https://github.com/mradovic95/activemq-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/activemq-mcp-server/issues"
+    "url": "https://github.com/mradovic95/activemq-mcp-server/issues"
   },
-  "homepage": "https://github.com/your-username/activemq-mcp-server#readme"
+  "homepage": "https://github.com/mradovic95/activemq-mcp-server#readme"
 }

@@ -844,7 +844,7 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
-- Report issues on [GitHub Issues](https://github.com/your-username/activemq-mcp-server/issues)
+- Report issues on [GitHub Issues](https://github.com/mradovic95/activemq-mcp-server/issues)
 - Check the [ActiveMQ documentation](https://activemq.apache.org/components/classic/documentation)
 - Review [MCP specification](https://modelcontextprotocol.io/introduction)
 
