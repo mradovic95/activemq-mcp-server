@@ -26,7 +26,6 @@ principles with composition patterns, using ActiveMQ's REST API for reliable mes
                                                        │
                                               ┌────────┴────────┐
                                               │ ActiveMQFacade  │
-                                              │ (Composition)   │
                                               └────────┬────────┘
                                                        │
                         ┌──────────────────────────────┼──────────────────────────────┐
