@@ -142,7 +142,7 @@ out/
 *.launch
 .settings/
 .metadata
-bin/
+# bin/ - commented out to allow CLI binary publishing
 tmp/
 *.tmp
 *.bak
