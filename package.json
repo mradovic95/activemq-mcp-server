@@ -1,6 +1,6 @@
 {
   "name": "activemq-mcp-server",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "ActiveMQ MCP server for AI integration with queue and topic management capabilities",
   "type": "module",
   "main": "src/server.js",
