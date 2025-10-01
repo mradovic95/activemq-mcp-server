@@ -31,6 +31,7 @@ export class ConfigManager {
   }
 
   loadEnvironmentVariables() {
+    // Load default/single broker environment variables
     const envConfig = {}
 
     if (process.env.ACTIVEMQ_HOST) {
@@ -51,7 +52,66 @@ export class ConfigManager {
 
     if (Object.keys(envConfig).length > 0) {
       this.config.default = { ...this.config.default, ...envConfig }
-      logger.info('Environment variables loaded into configuration')
+      logger.info('Default environment variables loaded into configuration')
+    }
+
+    // Load multiple broker environment variables using {CONNECTION_NAME}_ACTIVEMQ_{PARAMETER} pattern
+    this.loadMultipleEnvironmentBrokers()
+  }
+
+  loadMultipleEnvironmentBrokers() {
+    const envVars = process.env
+    const brokerConnections = {}
+
+    // Find all environment variables matching the pattern {CONNECTION_NAME}_ACTIVEMQ_{PARAMETER}
+    const activemqEnvPattern = /^([A-Z][A-Z0-9_]*)_ACTIVEMQ_([A-Z_]+)$/
+
+    for (const [envVar, value] of Object.entries(envVars)) {
+      const match = envVar.match(activemqEnvPattern)
+      if (match) {
+        const [, connectionName, parameter] = match
+        const normalizedConnectionName = connectionName.toLowerCase()
+
+        if (!brokerConnections[normalizedConnectionName]) {
+          brokerConnections[normalizedConnectionName] = {}
+        }
+
+        // Map environment variable parameters to config parameters
+        switch (parameter) {
+          case 'HOST':
+            brokerConnections[normalizedConnectionName].host = value
+            break
+          case 'PORT':
+            brokerConnections[normalizedConnectionName].port = parseInt(value, 10)
+            break
+          case 'USERNAME':
+            brokerConnections[normalizedConnectionName].username = value
+            break
+          case 'PASSWORD':
+            brokerConnections[normalizedConnectionName].password = value
+            break
+          case 'SSL':
+            brokerConnections[normalizedConnectionName].ssl = value.toLowerCase() === 'true'
+            break
+          default:
+            logger.warn(`Unknown ActiveMQ environment variable parameter: ${parameter} for connection ${connectionName}`)
+        }
+      }
+    }
+
+    // Add discovered connections to config
+    const connectionCount = Object.keys(brokerConnections).length
+    if (connectionCount > 0) {
+      for (const [connectionName, config] of Object.entries(brokerConnections)) {
+        // Don't overwrite existing file-based configurations
+        if (!this.config[connectionName]) {
+          this.config[connectionName] = config
+        } else {
+          // Merge with existing config, with env vars taking precedence
+          this.config[connectionName] = { ...this.config[connectionName], ...config }
+        }
+      }
+      logger.info(`Multiple broker environment variables loaded: ${connectionCount} connections (${Object.keys(brokerConnections).join(', ')})`)
     }
   }
 

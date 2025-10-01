@@ -172,6 +172,8 @@ activemq-mcp-server/
 
 ### Environment Variables
 
+#### Standard Environment Variables
+
 | Variable               | Description                         | Default       |
 |------------------------|-------------------------------------|---------------|
 | `ACTIVEMQ_HOST`        | Default ActiveMQ broker hostname    | `localhost`   |
@@ -180,6 +182,43 @@ activemq-mcp-server/
 | `ACTIVEMQ_PASSWORD`    | Default password for authentication | `""`          |
 | `ACTIVEMQ_SSL`         | Enable SSL for default connection   | `false`       |
 | `ACTIVEMQ_CONFIG_PATH` | Path to configuration file          | Auto-detected |
+
+#### Multiple Broker Environment Variables
+
+For multiple broker connections, use the pattern `{CONNECTION_NAME}_ACTIVEMQ_{PARAMETER}`:
+
+| Variable Pattern               | Description                             | Example                           |
+|--------------------------------|-----------------------------------------|-----------------------------------|
+| `{NAME}_ACTIVEMQ_HOST`         | Broker hostname for named connection    | `PROD_ACTIVEMQ_HOST=broker.com`   |
+| `{NAME}_ACTIVEMQ_PORT`         | Broker port for named connection        | `PROD_ACTIVEMQ_PORT=8161`         |
+| `{NAME}_ACTIVEMQ_USERNAME`     | Username for named connection           | `PROD_ACTIVEMQ_USERNAME=admin`    |
+| `{NAME}_ACTIVEMQ_PASSWORD`     | Password for named connection           | `PROD_ACTIVEMQ_PASSWORD=secret`   |
+| `{NAME}_ACTIVEMQ_SSL`          | Enable SSL for named connection         | `PROD_ACTIVEMQ_SSL=true`          |
+
+**Examples:**
+
+```bash
+# Production ActiveMQ broker
+export PROD_ACTIVEMQ_HOST=prod-broker.company.com
+export PROD_ACTIVEMQ_PORT=8161
+export PROD_ACTIVEMQ_USERNAME=prod_user
+export PROD_ACTIVEMQ_PASSWORD=prod_password
+export PROD_ACTIVEMQ_SSL=true
+
+# Development ActiveMQ broker
+export DEV_ACTIVEMQ_HOST=localhost
+export DEV_ACTIVEMQ_PORT=8161
+export DEV_ACTIVEMQ_USERNAME=admin
+export DEV_ACTIVEMQ_PASSWORD=admin
+
+# Staging ActiveMQ broker
+export STAGING_ACTIVEMQ_HOST=staging-broker.company.com
+export STAGING_ACTIVEMQ_PORT=8161
+export STAGING_ACTIVEMQ_USERNAME=staging_user
+export STAGING_ACTIVEMQ_PASSWORD=staging_password
+```
+
+**🔒 Security Advantage**: This pattern allows you to configure multiple brokers securely using only environment variables, avoiding the need for configuration files that AI agents might access.
 
 ### Configuration File Format
 
@@ -270,7 +309,7 @@ Add the ActiveMQ MCP server to your Claude Desktop by editing the MCP configurat
 **macOS/Linux:** `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
-#### Option 1: Environment Variables (Simple)
+#### Option 1: Environment Variables (Recommended for Security)
 ```json
 {
   "mcpServers": {
@@ -287,6 +326,41 @@ Add the ActiveMQ MCP server to your Claude Desktop by editing the MCP configurat
   }
 }
 ```
+
+**🔒 Security Note**: Environment variables are more secure than configuration files since AI agents can potentially access the file system, but environment variables are isolated to the MCP server process.
+
+#### Option 1b: Multiple Brokers via Environment Variables (Secure Multi-Broker Setup)
+```json
+{
+  "mcpServers": {
+    "activemq": {
+      "command": "npx",
+      "args": ["activemq-mcp-server"],
+      "env": {
+        "PROD_ACTIVEMQ_HOST": "prod-broker.company.com",
+        "PROD_ACTIVEMQ_PORT": "8161",
+        "PROD_ACTIVEMQ_USERNAME": "prod_user",
+        "PROD_ACTIVEMQ_PASSWORD": "prod_password",
+        "PROD_ACTIVEMQ_SSL": "true",
+        "DEV_ACTIVEMQ_HOST": "localhost",
+        "DEV_ACTIVEMQ_PORT": "8161",
+        "DEV_ACTIVEMQ_USERNAME": "admin",
+        "DEV_ACTIVEMQ_PASSWORD": "admin",
+        "STAGING_ACTIVEMQ_HOST": "staging-broker.company.com",
+        "STAGING_ACTIVEMQ_PORT": "8161",
+        "STAGING_ACTIVEMQ_USERNAME": "staging_user",
+        "STAGING_ACTIVEMQ_PASSWORD": "staging_password"
+      }
+    }
+  }
+}
+```
+
+**Environment Variable Pattern**: Use `{CONNECTION_NAME}_ACTIVEMQ_{PARAMETER}` format where:
+- `{CONNECTION_NAME}` is the unique identifier for your broker (e.g., PROD, DEV, STAGING)
+- `{PARAMETER}` is the broker parameter (HOST, PORT, USERNAME, PASSWORD, SSL)
+
+**🔒 Security Benefit**: This approach keeps all sensitive credentials in environment variables while supporting multiple brokers without configuration files.
 
 #### Option 2: Configuration File (Multiple Brokers)
 ```json
@@ -307,7 +381,7 @@ Add the ActiveMQ MCP server to your Claude Desktop by editing the MCP configurat
 
 Add to your `.mcp.json` file in your project root:
 
-#### Option 1: Environment Variables (Simple)
+#### Option 1: Environment Variables (Recommended for Security)
 ```json
 {
   "mcpServers": {
@@ -324,6 +398,41 @@ Add to your `.mcp.json` file in your project root:
   }
 }
 ```
+
+**🔒 Security Note**: Environment variables are more secure than configuration files since AI agents can potentially access the file system, but environment variables are isolated to the MCP server process.
+
+#### Option 1b: Multiple Brokers via Environment Variables (Secure Multi-Broker Setup)
+```json
+{
+  "mcpServers": {
+    "activemq": {
+      "command": "npx",
+      "args": ["activemq-mcp-server"],
+      "env": {
+        "PROD_ACTIVEMQ_HOST": "prod-broker.company.com",
+        "PROD_ACTIVEMQ_PORT": "8161",
+        "PROD_ACTIVEMQ_USERNAME": "prod_user",
+        "PROD_ACTIVEMQ_PASSWORD": "prod_password",
+        "PROD_ACTIVEMQ_SSL": "true",
+        "DEV_ACTIVEMQ_HOST": "localhost",
+        "DEV_ACTIVEMQ_PORT": "8161",
+        "DEV_ACTIVEMQ_USERNAME": "admin",
+        "DEV_ACTIVEMQ_PASSWORD": "admin",
+        "ANALYTICS_ACTIVEMQ_HOST": "analytics-broker.company.com",
+        "ANALYTICS_ACTIVEMQ_PORT": "8161",
+        "ANALYTICS_ACTIVEMQ_USERNAME": "analytics_user",
+        "ANALYTICS_ACTIVEMQ_PASSWORD": "analytics_password"
+      }
+    }
+  }
+}
+```
+
+**Environment Variable Pattern**: Use `{CONNECTION_NAME}_ACTIVEMQ_{PARAMETER}` format where:
+- `{CONNECTION_NAME}` is the unique identifier for your broker (e.g., PROD, DEV, ANALYTICS)
+- `{PARAMETER}` is the broker parameter (HOST, PORT, USERNAME, PASSWORD, SSL)
+
+**🔒 Security Benefit**: This approach keeps all sensitive credentials in environment variables while supporting multiple brokers without configuration files.
 
 #### Option 2: Configuration File (Multiple Brokers)
 ```json

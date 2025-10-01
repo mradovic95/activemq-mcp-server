@@ -307,15 +307,17 @@ The ActiveMQ MCP Server follows a configuration-first, connect-on-demand approac
    ↓
 2. Load Config Files (activemq-config.json, config.json, or ACTIVEMQ_CONFIG_PATH)
    ↓
-3. Load Environment Variables (ACTIVEMQ_HOST, ACTIVEMQ_PORT, etc.)
+3. Load Single Broker Environment Variables (ACTIVEMQ_HOST, ACTIVEMQ_PORT, etc.)
    ↓
-4. Display Configuration Status
+4. Load Multiple Broker Environment Variables ({CONNECTION_NAME}_ACTIVEMQ_{PARAMETER})
    ↓
-5. Server Ready (no connections established)
+5. Display Configuration Status
    ↓
-6. AI Uses connect_from_config Tool
+6. Server Ready (no connections established)
    ↓
-7. Connection Established On-Demand
+7. AI Uses connect_from_config Tool
+   ↓
+8. Connection Established On-Demand
 ```
 
 ### New Configuration Tools
@@ -348,6 +350,54 @@ This approach provides several benefits:
 - **Flexibility**: Connect only to needed brokers
 - **Visibility**: Clear view of available configurations
 - **Control**: Explicit connection management
+
+### Environment Variable Patterns
+
+#### Single Broker Configuration (Legacy)
+```bash
+export ACTIVEMQ_HOST=localhost
+export ACTIVEMQ_PORT=8161
+export ACTIVEMQ_USERNAME=admin
+export ACTIVEMQ_PASSWORD=admin
+export ACTIVEMQ_SSL=false
+```
+
+#### Multiple Broker Configuration (Recommended)
+Use the pattern `{CONNECTION_NAME}_ACTIVEMQ_{PARAMETER}` to configure multiple brokers:
+
+```bash
+# Production Broker
+export PROD_ACTIVEMQ_HOST=prod-broker.company.com
+export PROD_ACTIVEMQ_PORT=8161
+export PROD_ACTIVEMQ_USERNAME=prod_user
+export PROD_ACTIVEMQ_PASSWORD=prod_password
+export PROD_ACTIVEMQ_SSL=true
+
+# Development Broker
+export DEV_ACTIVEMQ_HOST=localhost
+export DEV_ACTIVEMQ_PORT=8161
+export DEV_ACTIVEMQ_USERNAME=admin
+export DEV_ACTIVEMQ_PASSWORD=admin
+export DEV_ACTIVEMQ_SSL=false
+
+# Analytics Broker
+export ANALYTICS_ACTIVEMQ_HOST=analytics-broker.company.com
+export ANALYTICS_ACTIVEMQ_PORT=8161
+export ANALYTICS_ACTIVEMQ_USERNAME=analytics_user
+export ANALYTICS_ACTIVEMQ_PASSWORD=analytics_password
+```
+
+**Environment Variable Pattern Rules:**
+- `{CONNECTION_NAME}` must be uppercase letters, numbers, and underscores
+- `{CONNECTION_NAME}` becomes the connection name (converted to lowercase)
+- Supported parameters: HOST, PORT, USERNAME, PASSWORD, SSL
+- Invalid patterns are ignored (e.g., `prod_ACTIVEMQ_HOST`, `ACTIVEMQ_PROD_HOST`, `INVALID_PROD_HOST`)
+
+**Security Benefits:**
+- Keep sensitive credentials in environment variables
+- Support multiple brokers without configuration files
+- Environment-based configuration management
+- No credentials stored in version control
 
 ## Development Best Practices
 
